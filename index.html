@@ -8,6 +8,18 @@
   :root{
     --bg:#fffafc; --fg:#1d1a2b; --ink:#6f2cc8; --muted:#6b657a; --soft:#f6ecff; --edge:#e9dbfb; --line:#ece5fa;
   }
+  :root { --hud-h: 140px; }              /* fallback value */
+
+  #app {
+    /* keep existing rules, then add: */
+    padding-bottom: calc(var(--hud-h) + 12px);
+  }
+
+  /* make room for iPhone home indicator / notch inside the HUD itself */
+  #hud {
+    padding-bottom: calc(.7rem + env(safe-area-inset-bottom, 0px));
+  }
+
   html,body{height:100%}
   body{
     margin:0; background:var(--bg); color:var(--fg);
@@ -102,6 +114,14 @@
     return bits.length?('<span class="inv">'+bits.join(' ')+'</span>'):'';
   }
 
+  function reserveSpaceForHud(){
+    const hudEl = document.getElementById('hud');
+    if (!hudEl) return;
+    const h = hudEl.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--hud-h', h + 'px');
+  }
+
+
   function hud() {
     const sup = Math.max(0, S.support|0);
     const nor = Math.max(0, S.norm|0);
@@ -126,6 +146,8 @@
 
     const btn = document.getElementById('font-toggle');
     if (btn) btn.onclick = cycleFontSize;
+    reserveSpaceForHud();
+
   }
 
 
