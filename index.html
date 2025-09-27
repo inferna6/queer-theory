@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Queer Theory Quest -- Constellation Festival (Offline)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#fffafc; --fg:#1d1a2b; --ink:#6f2cc8; --muted:#6b657a; --soft:#f6ecff; --edge:#e9dbfb; --line:#ece5fa;
+  }
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    line-height:1.65; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  #app{max-width:880px; margin:32px auto 132px; padding:0 18px}
+  h1,h2,h3,strong{color:var(--ink); letter-spacing:.2px}
+  h1{font-size:1.8rem; margin:.2rem 0 1rem}
+  h2{font-size:1.35rem; margin:.2rem 0 .8rem}
+  p,li,blockquote{font-size:1.02rem}
+  .muted{color:var(--muted)}
+  .btn{
+    display:inline-block; margin:.34rem .24rem; padding:.5rem .85rem; border-radius:999px;
+    border:1px solid var(--edge); background:#fff; color:var(--fg); text-decoration:none; cursor:pointer;
+    transition:background .15s ease, transform .02s ease;
+  }
+  .btn:hover{background:var(--soft)}
+  .btn:active{transform:translateY(1px)}
+  .btn.good{border-color:#d8f3e4}
+  .btn.warn{border-color:#fde68a}
+  .btn.neutral{border-color:var(--line); color:var(--muted)}
+  .note{font-size:.95rem; color:var(--muted)}
+  blockquote{
+    border-left:3px solid var(--edge); padding:.5rem .85rem; margin:.35rem 0 .85rem; background:#fff; border-radius:6px;
+  }
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:1rem;
+  }
+  .orn{ display:block; text-align:center; color:#9b8cc2; margin:.9rem 0; font-size:.95rem; }
+  .orn:before, .orn:after{
+    content:""; display:inline-block; width:18%; min-width:80px; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent);
+    vertical-align:middle; margin:0 .6rem;
+  }
+  /* HUD */
+  #hud{
+    position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:2px solid var(--edge);
+    padding:.7rem .85rem; text-align:center; z-index:9999; font-size:.95rem;
+    box-shadow: 0 -8px 30px rgba(111,44,200,.05);
+  }
+  #barwrap{display:inline-flex; align-items:center; gap:.6rem}
+  .pill{display:inline-block; padding:.15rem .6rem; border-radius:9999px; font-size:.85rem; border:1px solid var(--line); margin-right:.35rem}
+  .meter{
+    width:44vw; max-width:520px; min-width:220px; height:12px; background:#f1eef8; border-radius:999px;
+    overflow:hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+  }
+  .mbar{display:flex; height:100%}
+  .mbar .support{background:linear-gradient(90deg,#c084fc,#a78bfa); transition:width .25s ease}
+  .mbar .norms{background:#cbd5e1; transition:width .25s ease}
+  .inv{display:inline-flex; align-items:center; gap:.25rem; margin-left:.6rem}
+  .chip{display:inline-flex; align-items:center; gap:.25rem; border:1px solid var(--line); border-radius:999px; padding:.08rem .45rem; font-size:.82rem}
+  .btn:focus{outline:3px solid #e5d6ff; outline-offset:2px}
+
+    /* Font toggle button */
+  #font-toggle {
+    margin-left: 1rem;
+    padding: .2rem .6rem;
+    font-size: .85rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  #font-toggle:hover {
+    background: var(--soft);
+  }
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function () {
+  const S = { support: 0, norm: 0, inv: { voice:0, rest:0, access:0, joy:0 } };
+  const reminders = [
+    "Small choices shape a kinder festival.",
+    "Who gets to feel at home?",
+    "Whose comfort matters most?",
+    "Voices multiply when shared.",
+    "Care is a practice, not a vibe.",
+  ];
+
+  function invHtml(){
+    const bits = [];
+    const map = { voice:['🗣️','Voice'], rest:['🫖','Rest'], access:['🗺️','Access'], joy:['✨','Joy'] };
+    for (const k of Object.keys(S.inv)){
+      const v = S.inv[k]|0; if(!v) continue;
+      bits.push('<span class="chip">'+map[k][0]+' '+map[k][1]+': <strong>'+v+'</strong></span>');
+    }
+    return bits.length?('<span class="inv">'+bits.join(' ')+'</span>'):'';
+  }
+
+  function hud() {
+    const sup = Math.max(0, S.support|0);
+    const nor = Math.max(0, S.norm|0);
+    const total = Math.max(1, sup+nor);
+    const supPct = Math.round((sup/total)*100);
+    const norPct = 100 - supPct;
+    const hud = document.getElementById('hud') || document.body.appendChild(Object.assign(document.createElement('div'),{id:'hud'}));
+    const note = reminders[Math.floor(Math.random()*reminders.length)];
+    const label = fontSizes[fontIndex] === 16 ? 'A−' : (fontSizes[fontIndex] === 18 ? 'A' : 'A+');
+
+    hud.innerHTML =
+      '<span class="pill">Support: <strong>'+sup+'</strong></span>' +
+      '<span class="pill">Norms: <strong>'+nor+'</strong></span>' +
+      '<span id="barwrap">' +
+        '<div class="meter"><div class="mbar">' +
+          '<div class="support" style="width:'+supPct+'%"></div>' +
+          '<div class="norms" style="width:'+norPct+'%"></div>' +
+        '</div></div>' +
+      '</span>' + invHtml() +
+      ' <span class="note">'+ note +'</span>' +
+      ' <button id="font-toggle">'+label+'</button>';
+
+    const btn = document.getElementById('font-toggle');
+    if (btn) btn.onclick = cycleFontSize;
+  }
+
+
+  let fontSizes = [16, 18, 20];
+  let fontIndex = 1; // default: 18px
+
+  function applyFont() {
+    document.documentElement.style.fontSize = fontSizes[fontIndex] + "px";
+    // refresh HUD to update the "A/A+/A−" label
+    const hudEl = document.getElementById('hud');
+    if (hudEl) hud();
+  }
+
+  function cycleFontSize() {
+    fontIndex = (fontIndex + 1) % fontSizes.length;
+    applyFont();
+  }
+
+  // apply default at load
+  applyFont();
+
+
+
+  function award(item, add){
+    if(!item) return; const k = String(item);
+    const amt = parseInt(add||1,10);
+    if(!S.inv[k]) S.inv[k]=0; S.inv[k]+=amt;
+  }
+
+  function bindLinks(scope){
+    scope.querySelectorAll('[data-goto]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        const ds = e.currentTarget.dataset;
+        if (ds.s) S.support += parseInt(ds.s, 10);
+        if (ds.n) S.norm    += parseInt(ds.n, 10);
+        if (ds.item) award(ds.item, ds.add||1);
+        if (ds.reset === '1') { S.support=0; S.norm=0; for(const k in S.inv) S.inv[k]=0; }
+        go(ds.goto);
+      });
+    });
+  }
+
+  function go(name){
+    const app = document.getElementById('app');
+    app.innerHTML = (P[name]?P[name]():('<p>Missing passage: '+name+'</p>'));
+    bindLinks(app);
+    hud();
+    const first = app.querySelector('.btn,[data-goto]');
+    first && first.focus && first.focus();
+  }
+
+  const P = {};
+
+  /* Landing */
+  P["Landing"] = function(){ return `
+    <h1>🏳️‍🌈 Queer Theory Quest</h1>
+    <p class="muted">Welcome to the Constellation Festival -- where categories wobble and care holds the tent up.</p>
+    <span class="orn">✿</span>
+    <p>
+      <a class="btn" data-goto="Rules">How to Play</a>
+      <a class="btn" data-goto="Glossary">Glossary</a>
+      <a class="btn" data-goto="Credits">Credits</a>
+    </p>
+  `; };
+
+  /* Rules -- with explicit endings & conditions */
+  P["Rules"] = function(){ return `
+    <h2>How it works</h2>
+    <div class="card">
+      <ul>
+        <li>Your choices move two dials: <strong>Support</strong> (care, listening, flexibility) and <strong>Norms</strong> (rigidity, silence, “we’ve always done it”).</li>
+        <li>You can also collect tokens: 🗣️ <strong>Voice</strong>, 🗺️ <strong>Access</strong>, 🫖 <strong>Rest</strong>, ✨ <strong>Joy</strong>.</li>
+        <li>These tokens unlock insights in the story and influence the best ending.</li>
+      </ul>
+    </div>
+    <div class="card" style="margin-top:.8rem">
+      <h3>Endings Guide</h3>
+      <ul>
+        <li>✨ <strong>Queer Utopia</strong> -- <em>Support ≥ 6</em> and <em>Support − Norms ≥ 3</em>.</li>
+        <li>🌱 <strong>Messy Middle</strong> -- everything else (mixed but learning).</li>
+        <li>▢ <strong>Boxed World</strong> -- <em>Norms ≥ 5</em> and <em>Norms − Support ≥ 3</em>.</li>
+        <li>🌌 <strong>Third Space (secret)</strong> -- <em>Support ≥ 6</em>, <em>Support − Norms ≥ 2</em>, and have tokens for <strong>Voice + Access + Rest</strong>.</li>
+      </ul>
+      <p class="note">Why these? Because inclusion is more than vibes: someone must be able to <em>arrive</em> (Access), <em>speak</em> (Voice), and <em>rest</em> (Rest). Joy binds them.</p>
+    </div>
+    <span class="orn">-- ○ --</span>
+    <p><a class="btn" data-goto="Prologue">Begin the story</a></p>
+  `; };
+
+  /* Prologue */
+  P["Prologue"] = function(){ return `
+    <h2>Prologue</h2>
+    <p>Morning glitters across tents and paper lanterns. Chalk squares mark tidy lines -- boxes again, always boxes, drawn or carried.</p>
+    <blockquote>A small voice near your elbow: “Do we have to fit, or can we dance?”</blockquote>
+    <p>
+      <a class="btn good" data-goto="Gate" data-s="1" data-item="joy">Make room for dancing -- slower, kinder start</a>
+      <a class="btn warn" data-goto="Gate" data-n="1">Ask people to stay in line -- quick, keeps order</a>
+    </p>
+  `; };
+
+  /* Gate of Names */
+  P["Gate"] = function(){ return `
+    <h2>Gate of Names</h2>
+    <p>A kiosk. A clipboard. Two boxes only.</p>
+    <blockquote><em>Tick exactly one:</em> [ ] <strong>Boy</strong> &nbsp; [ ] <strong>Girl</strong></blockquote>
+    <p>
+      <a class="btn warn" data-goto="Square" data-n="1">Tick <strong>Boy</strong> -- fast lane, reinforces the form</a>
+      <a class="btn warn" data-goto="Square" data-n="1">Tick <strong>Girl</strong> -- fast lane, reinforces the form</a>
+      <a class="btn good" data-goto="Square" data-s="1" data-item="voice">Write: “People are not file folders.” -- slower, but it leaves a trace</a>
+      <a class="btn good" data-goto="Square" data-s="1" data-item="joy">Draw a tiny comet -- playful disruption, small delay</a>
+    </p>
+  `; };
+
+  /* Town Square */
+  P["Square"] = function(){ return `
+    <h2>Town Square</h2>
+    <p>A musician waves, juggling three clipboards like a circus act: “I’m <strong>Ari (they/them)</strong>. We’re tuning the festival so everyone can breathe. Want to help?”</p>
+    <p>
+      <a class="btn good" data-goto="Hub" data-s="1">Join the core team -- more say, more responsibility</a>
+      <a class="btn neutral" data-goto="Hub">Help a little -- less risk, less influence</a>
+      <a class="btn warn" data-goto="Hub" data-n="1">Observe only -- low effort, no voice</a>
+    </p>
+  `; };
+
+  /* Hub: linear itinerary */
+  P["Hub"] = function(){ return `
+    <h2>Logistics Hub</h2>
+    <p>Clipboards click into place: <em>Play Casting → Posters → Workshop → Open Mic → Vendor Row → Access Walk → Safety Plan → Parade Route → Break Room → Mirror Room → Final Gate</em>.</p>
+    <p><a class="btn" data-goto="Casting">Go to Casting</a></p>
+  `; };
+
+  /* Casting */
+  P["Casting"] = function(){ return `
+    <h2>Rehearsal Room</h2>
+    <p>The drama teacher claps: “Boys are knights, girls are stars. Quick and neat.” A kid stares at their shoes.</p>
+    <p>
+      <a class="btn good" data-goto="RehearsalPlan" data-s="1" data-item="voice">Open auditions for all roles -- inclusive, rehearsals take longer</a>
+      <a class="btn neutral" data-goto="RehearsalPlan" data-n="1">Swap one role as a trial -- keeps peace, leaves some limits</a>
+      <a class="btn warn" data-goto="RehearsalPlan" data-n="2">Keep gendered roles -- on-schedule, less participation</a>
+    </p>
+    <p class="note">Field note (Performativity): Gender feels “natural” when rules repeat; change the script, change the feel.</p>
+  `; };
+
+  P["RehearsalPlan"] = function(){ return `
+    <h2>Rehearsal Plan</h2>
+    <p>The teacher frowns at the calendar. Ari whispers, “Pilot one scene, learn fast.”</p>
+    <p>
+      <a class="btn good" data-goto="Posters" data-s="1">Pilot open casting for one scene -- learning curve, better fit</a>
+      <a class="btn neutral" data-goto="Posters" data-n="1">Swap a single role -- minimum friction, minimum impact</a>
+      <a class="btn warn" data-goto="Posters" data-n="1">Keep roles as is -- efficient now, costly later</a>
+    </p>
+  `; };
+
+  /* Posters */
+  P["Posters"] = function(){ return `
+    <h2>Poster Night</h2>
+    <p>Paint splatters mix with laughter. “Pronoun options on badges?” “All-gender restroom map?”</p>
+    <p>
+      <a class="btn good" data-goto="Workshop" data-s="1" data-item="access">Add pronoun options + QR restroom map -- welcoming, adds cost/time</a>
+      <a class="btn neutral" data-goto="Workshop">Badges only -- partial step, map later</a>
+      <a class="btn warn" data-goto="Workshop" data-n="1">Skip both -- fastest, some feel unwelcome</a>
+    </p>
+    <p class="note">Field note (Orientation): Spaces point some bodies forward and turn others around.</p>
+  `; };
+
+  /* Workshop */
+  P["Workshop"] = function(){ return `
+    <h2>Workshop (Open Mic Prep)</h2>
+    <p>People talk over each other. “We need speaking rules,” Ari says.</p>
+    <p>
+      <a class="btn good" data-goto="OpenMic" data-s="1" data-item="voice">Use a speaking stack -- fairer flow, slower pace</a>
+      <a class="btn neutral" data-goto="OpenMic">Model sharing the mic -- quicker, less consistent</a>
+      <a class="btn warn" data-goto="OpenMic" data-n="1">Trust vibes -- fast, quieter voices fade</a>
+    </p>
+    <p class="note">Field note (Voice): Access to the mic isn’t just time; it’s safety and welcome.</p>
+  `; };
+
+  /* Open Mic */
+  P["OpenMic"] = function(){ return `
+    <h2>Open Mic</h2>
+    <p>The list is long. A teen waits with a shaky paper. The town trustee checks their watch.</p>
+    <p>
+      <a class="btn good" data-goto="Vendors" data-s="2" data-item="voice">Give them your slot & help polish one sentence -- their voice grows, you skip your turn</a>
+      <a class="btn neutral" data-goto="Vendors" data-s="1">Split your time -- share, but risk both being cut short</a>
+      <a class="btn warn" data-goto="Vendors" data-n="2">Take your full slot -- smooth show, fewer voices</a>
+    </p>
+  `; };
+
+  /* Vendor Row */
+  P["Vendors"] = function(){ return `
+    <h2>Vendor Row</h2>
+    <p>Steam curls from food stalls. One vendor grumbles about pronoun pins; another quietly lowers prices for kids.</p>
+    <p>
+      <a class="btn good" data-goto="AccessWalk" data-s="1" data-item="joy">Offer a pronoun pin basket -- small cost, big smiles</a>
+      <a class="btn neutral" data-goto="AccessWalk">Keep walking -- save time, miss a chance to connect</a>
+      <a class="btn warn" data-goto="AccessWalk" data-n="1">Ask them to drop the pins -- fewer complaints, less welcome</a>
+    </p>
+    <p class="note">Field note (Coalition): Joy is infrastructure; it keeps people here.</p>
+  `; };
+
+  /* Access Walk */
+  P["AccessWalk"] = function(){ return `
+    <h2>Accessibility Walkthrough</h2>
+    <p>You trace the map: ramps, toilets, quiet tent, shade. A sign points nowhere helpful.</p>
+    <p>
+      <a class="btn good" data-goto="SafetyPlan" data-s="1" data-item="access">Redraw the sign with icons + QR -- clearer, takes time</a>
+      <a class="btn neutral" data-goto="SafetyPlan">Mark it for later -- quick note, delayed fix</a>
+      <a class="btn warn" data-goto="SafetyPlan" data-n="1">Leave it -- most will figure it out, some won’t</a>
+    </p>
+    <p class="note">Field note (Intersectionality): Barriers stack -- design for the edges first.</p>
+  `; };
+
+  /* Safety Plan */
+  P["SafetyPlan"] = function(){ return `
+    <h2>Safety Team Huddle</h2>
+    <p>Two volunteers are nervous: “What if there’s pushback?”</p>
+    <p>
+      <a class="btn good" data-goto="Parade" data-s="1" data-item="rest">Set de-escalation roles + buddy system -- prep time now, calmer later</a>
+      <a class="btn neutral" data-goto="Parade">Ask folks to be chill -- easy, uncertain outcome</a>
+      <a class="btn warn" data-goto="Parade" data-n="1">Plan to out-shout -- quick plan, higher risk</a>
+    </p>
+    <p class="note">Field note (Care): Safety is choreography, not volume.</p>
+  `; };
+
+  /* Parade Route */
+  P["Parade"] = function(){ return `
+    <h2>Parade Route</h2>
+    <p>Two paths: a quick route past narrow steps, or a longer loop by the ramped garden.</p>
+    <p>
+      <a class="btn good" data-goto="BreakRoom" data-s="1" data-item="access">Take the ramped garden -- slower, everyone moves together</a>
+      <a class="btn neutral" data-goto="BreakRoom">Split the route -- most arrive fast, some feel left behind</a>
+      <a class="btn warn" data-goto="BreakRoom" data-n="1">Take the steps -- on time, some excluded</a>
+    </p>
+    <p class="note">Field note (Utopia as Horizon): The route is a choice; horizons don’t move, we do.</p>
+  `; };
+
+  /* Break Room */
+  P["BreakRoom"] = function(){ return `
+    <h2>Break Room</h2>
+    <p>You and Ari sit with paper cups and a festival map. “We also need rest,” Ari says. “People burn out before the music starts.”</p>
+    <p>
+      <a class="btn good" data-goto="Mirror" data-s="1" data-item="rest">Add a quiet tent + break rota -- resources now, stamina later</a>
+      <a class="btn neutral" data-goto="Mirror">Promise to revisit later -- easy now, risky later</a>
+      <a class="btn warn" data-goto="Mirror" data-n="1">Drop the plan -- saves effort, frays people</a>
+    </p>
+  `; };
+
+  /* Mirror Room */
+  P["Mirror"] = function(){ return `
+    <h2>Mirror Room</h2>
+    <p>Lights dim. Three mirrors show the festival with your choice at the center:</p>
+    <div class="card">
+      <ol>
+        <li>You carry a neat labeled box. The lines are fast. Some faces fade.</li>
+        <li>You crease and fold the box into a small bridge. People cross, laughing at the wobble.</li>
+        <li>You shred the box into mulch and plant herbs by the stage; later, someone brews tea.</li>
+      </ol>
+    </div>
+    <p>
+      <a class="btn" data-goto="FinalGate" data-n="1">Carry the box -- stable & quick, fewer voices</a>
+      <a class="btn good" data-goto="FinalGate" data-s="1" data-item="voice">Fold it into a bridge -- connects groups, needs care</a>
+      <a class="btn good" data-goto="FinalGate" data-s="1" data-item="access">Compost to mulch -- new growth, messy start</a>
+    </p>
+  `; };
+
+
+  /* Final Gate */
+  P["FinalGate"] = function(){
+    const s = S.support|0, n = S.norm|0;
+    const hasThird = (S.inv.voice>0 && S.inv.rest>0 && S.inv.access>0);
+    let next = "Messy";
+    if (hasThird && s >= 6 && (s - n) >= 2) next = "Third";
+    else if (s >= 6 && (s - n) >= 3) next = "Utopia";
+    else if (n >= 5 && (n - s) >= 3) next = "Boxed";
+    return `
+      <h2>Final Gate</h2>
+      <p>The gate listens: Did people have room to speak, to rest, to try? What did you carry?</p>
+      <p><a class="btn" data-goto="${next}">Enter → ${next}</a></p>
+      <p class="muted">Tally -- Support: <strong>${s}</strong> • Norms: <strong>${n}</strong> • Tokens: 🗣️ ${S.inv.voice||0} 🗺️ ${S.inv.access||0} 🫖 ${S.inv.rest||0} ✨ ${S.inv.joy||0}</p>
+    `;
+  };
+
+  /* Endings */
+  P["Utopia"] = function(){ return `
+    <h2>✨ Queer Utopia</h2>
+    <div class="card">
+      <p>The ramp is sturdy. The map is clear. The play casts by desire and skill; the crowd cheers for surprise. The teen reads their line, hands steady. The quiet tent hums with deep breaths and tea.</p>
+      <blockquote>Ari smiles: “We didn’t make the town perfect. We made it kinder.”</blockquote>
+      <p class="muted">Theory nudge: queering norms, gender as performed (Butler), and intersectionality turned into practice -- time, space, and microphones used with care.</p>
+    </div>
+    <p>
+      <a class="btn" data-goto="Landing" data-reset="1">Back to Start</a>
+      <a class="btn" data-goto="Glossary">Glossary</a>
+      <a class="btn" data-goto="Credits">Credits</a>
+    </p>
+  `; };
+
+  P["Boxed"] = function(){ return `
+    <h2>▢ Boxed World</h2>
+    <div class="card">
+      <p>The stage is on time and sharp. The lines move, but slowly fewer join them. The map is “coming soon.” The play looks tidy, though the cast feels smaller. The teen folds their shaky paper and slips away before the mic is free. Silence is smooth, but it echoes.</p>
+      <p class="muted">Order without care is quiet, but costly. Ask: whose comfort did the boxes guard, and who was left outside?</p>
+    </div>
+    <p>
+      <a class="btn" data-goto="Landing" data-reset="1">Try different choices</a>
+      <a class="btn" data-goto="Glossary">Glossary</a>
+      <a class="btn" data-goto="Credits">Credits</a>
+    </p>
+  `; };
+
+  P["Messy"] = function(){ return `
+    <h2>🌱 Messy Middle</h2>
+    <div class="card">
+      <p>Some changes land; others wait for next time. The map prints late, but the open casting makes the younger kids brave. The quiet tent is small, still sweet.</p>
+      <blockquote>“Not perfect, not pretend.”</blockquote>
+      <p class="muted">You learned how culture shifts: step, listen, adjust, try again.</p>
+    </div>
+    <p>
+      <a class="btn" data-goto="Landing" data-reset="1">Back to Start</a>
+      <a class="btn" data-goto="Glossary">Glossary</a>
+      <a class="btn" data-goto="Credits">Credits</a>
+    </p>
+  `; };
+
+  P["Third"] = function(){ return `
+    <h2>🌌 Third Space</h2>
+    <div class="card">
+      <p>Between box and <em>bridge</em>, between label and <em>garden</em>, a new path opens. You didn’t just win; you made rooms. Voice found a mic, Access found a map, Rest found a chair. Joy braided them together.</p>
+      <blockquote>Ari: “Look. We’re not outside the system; we’re re-staging it.”</blockquote>
+      <p class="muted">Theory nudge: the “in-between” -- liminality, coalition-building, and worlding as practice. Utopia is a direction, not a destination.</p>
+    </div>
+    <p>
+      <a class="btn" data-goto="Landing" data-reset="1">Play again</a>
+      <a class="btn" data-goto="Glossary">Glossary</a>
+      <a class="btn" data-goto="Credits">Credits</a>
+    </p>
+  `; };
+
+  /* Glossary */
+  P["Glossary"] = function(){ return `
+    <h2>Glossary (small + friendly)</h2>
+    <div class="card">
+      <ul>
+        <li><strong>Heteronormativity</strong> -- Treating straight as default or “normal.”</li>
+        <li><strong>Cisnormativity</strong> -- Expecting gender to match sex assigned at birth.</li>
+        <li><strong>Performativity (Judith Butler)</strong> -- Gender is something people <em>do</em> again and again; repetition makes it feel natural.</li>
+        <li><strong>Intersectionality (Kimberlé Crenshaw)</strong> -- Overlapping systems (race, class, disability, gender, etc.) shape what’s easy or hard.</li>
+        <li><strong>Orientation (Sara Ahmed)</strong> -- Spaces line up with certain bodies and paths; inclusion is also directional.</li>
+        <li><strong>Utopia as Horizon (José Esteban Muñoz)</strong> -- Not a place you reach, but a direction you move toward together.</li>
+        <li><strong>Coalition</strong> -- Working across differences; small shared practices matter.</li>
+        <li><strong>Queering</strong> -- Opening categories; bending rules so more people can breathe.</li>
+      </ul>
+    </div>
+    <span class="orn">✿</span>
+    <p><a class="btn" data-goto="Landing">Back to Start</a></p>
+  `; };
+
+  /* Credits */
+  P["Credits"] = function(){ return `
+    <h2>Credits</h2>
+    <div class="card">
+      <p><strong>Queer Theory Quest: Constellation Festival</strong></p>
+      <p>
+        This interactive story-game was created as the final project for the course 
+        <em>Academic Me, Creative Me (SoSe 2025)</em>.  
+        The course explores the interplay between academic and creative writing, 
+        asking how rules, conventions, and traditions can be both followed and 
+        transformed, and how the personal voice of the writer remains central.
+      </p>
+      <p>
+        <strong>Idea behind the game:</strong> The festival setting is a metaphorical 
+        space where everyday decisions about inclusion, care, and norm-following 
+        become visible. By letting the player make small but meaningful choices, 
+        the game translates insights from queer theory into lived, practical dilemmas. 
+        Each choice is an echo of theory-in-action: whether to reinforce existing boxes, 
+        bend them into bridges, or compost them into something new. 
+      </p>
+      <p>
+        <strong>Relevance to the course:</strong> The game blurs the boundary between 
+        academic and creative work. It uses cultural theory (Judith Butler’s 
+        <em>performativity</em>, Kimberlé Crenshaw’s <em>intersectionality</em>, 
+        Sara Ahmed’s <em>orientation</em>, José Esteban Muñoz’s <em>utopia as horizon</em>, 
+        and practices of <em>queering</em>) as narrative building blocks. At the same time, 
+        it employs creative storytelling and playful mechanics to show how theory 
+        can be embodied and felt. In this way, it mirrors the course’s central aim: 
+        to find a voice that is both critical and personal, both academic and creative.
+      </p>
+      <p><em>Created by:</em> <strong>Meral Heken</strong></p>
+    </div>
+    <p><a class="btn" data-goto="Landing">Back to Start</a></p>
+  `; };
+
+
+  go("Landing");
+})();
+</script>
+</body>
+</html>
+
