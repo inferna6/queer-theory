@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>Queer Theory Quest -- Constellation Festival (Offline)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <style>
   :root{
     --bg:#fffafc; --fg:#1d1a2b; --ink:#6f2cc8; --muted:#6b657a; --soft:#f6ecff; --edge:#e9dbfb; --line:#ece5fa;
@@ -26,7 +26,14 @@
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
     line-height:1.65; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  #app{max-width:880px; margin:32px auto 132px; padding:0 18px}
+  #app{
+    max-width:880px;
+    margin:32px auto 132px;
+    padding:0 18px;
+    /* reserve space for the fixed HUD + safe area */
+    padding-bottom: calc(var(--hud-h) + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+
   h1,h2,h3,strong{color:var(--ink); letter-spacing:.2px}
   h1{font-size:1.8rem; margin:.2rem 0 1rem}
   h2{font-size:1.35rem; margin:.2rem 0 .8rem}
@@ -203,6 +210,8 @@
 
   window.addEventListener('resize', reserveSpaceForHud);
   window.addEventListener('orientationchange', reserveSpaceForHud);
+  window.addEventListener('scroll', reserveSpaceForHud, { passive: true });
+  
 
 
   /* Landing */
