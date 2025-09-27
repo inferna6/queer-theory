@@ -201,6 +201,10 @@
 
   const P = {};
 
+  window.addEventListener('resize', reserveSpaceForHud);
+  window.addEventListener('orientationchange', reserveSpaceForHud);
+
+
   /* Landing */
   P["Landing"] = function(){ return `
     <h1>🏳️‍🌈 Queer Theory Quest</h1>
